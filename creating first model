@@ -1,0 +1,73 @@
+from mesa import Agent, Model
+from mesa import RandomActivation
+from mesa.space import MultiGrid
+from mesa.datacollection import DataCollector
+import random
+class person(Agent):
+    def __init__(self, model, unique_id, infected = False):
+        super().__init__(model,unique_id)
+
+        self.health = "S" if infected else "S"
+    
+    def step(move):
+        self.move()
+
+        if self.health == "I":
+            self.infect_neighbour()
+
+            if random.random() <= self.model.recovery_chance():
+                self.health == "R"
+
+
+    def move(self):
+        pos_step = self.model.grid.get_neighbour(self.pos,moore = True,include_centre = False)
+        new_position = random.choice(pos_step)
+        self.model.grid.move_agent(self, new_position)
+
+    def infect_neighbour(self):
+        cellmates = self.model.grid.get_cells_list_content(self.pos)
+        for others in cellmates:
+            if self.health == "S":
+                if random.random < self.model.infection_chance:
+                    other.health = "I"
+
+
+
+
+class VirusMdel(Model):
+    def __init__(self, model, N= 50, infection_chance = 0.3,
+                 recovery_chance = 0.6,
+                 height = 10,
+                 width = 20,
+                 initial_infected = 4):
+        super.__init__()
+        self.num_agent = N
+        self.grid = MultiGrid(height,width,torus = True)
+        self.schedule.RandomActivation()
+        self.infection_chance = infection_chance()
+        self.recovery_chance = recovery_chance()
+
+        for i in range(self.num_agent):
+            infected = i < initial_infected
+            a = Person( i, self, infected)
+            self.schedule.add(a)
+            
+            x = self.random.randrange(self.grid.height)
+            y = self.random.randrange(self.grid.width)
+            self.grid.place_agent(a,(x,y))
+
+        self.datacollector = DataCollector(
+            model_reporters={
+                "Susceptible" : lambda m : self.count_type("S"),
+                "Infected" : lambda m: self.count_type("I"),
+                "Recovery" : lambda m: self.count_type("R")
+            }
+        )
+        
+
+
+
+
+
+
+    
