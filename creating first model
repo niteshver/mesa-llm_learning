@@ -34,7 +34,7 @@ class person(Agent):
 
 
 
-class VirusMdel(Model):
+class VirusModel(Model):
     def __init__(self, model, N= 50, infection_chance = 0.3,
                  recovery_chance = 0.6,
                  height = 10,
@@ -63,7 +63,22 @@ class VirusMdel(Model):
                 "Recovery" : lambda m: self.count_type("R")
             }
         )
-        
+    def step(self):
+        self.datacollector.colect(self)
+        self.schedule.step()
+
+    def count_type(self, health_state):
+        return sum([1 for a in self.schedule.agents if a.health == health_state])
+    
+    if __name__ == "__main__":
+    model = VirusModel()
+
+    for day in range(20):   
+        model.step()
+
+    results = model.datacollector.get_model_vars_dataframe()
+    print(results)
+
 
 
 
