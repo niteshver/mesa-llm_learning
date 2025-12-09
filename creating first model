@@ -1,88 +1,108 @@
 from mesa import Agent, Model
-from mesa import RandomActivation
+from mesa.time import RandomActivation
 from mesa.space import MultiGrid
 from mesa.datacollection import DataCollector
 import random
-class person(Agent):
-    def __init__(self, model, unique_id, infected = False):
-        super().__init__(model,unique_id)
 
-        self.health = "S" if infected else "S"
-    
-    def step(move):
+
+class Person(Agent):
+    def __init__(self, unique_id, model, infected=False):
+        super().__init__(unique_id, model)
+
+        # "S" = Susceptible, "I" = Infected, "R" = Recovered
+        self.health = "I" if infected else "S"
+
+    def step(self):
+        # 1. Move
         self.move()
 
+        # 2. Infect neighbours if infected
         if self.health == "I":
-            self.infect_neighbour()
+            self.infect_neighbours()
 
-            if random.random() <= self.model.recovery_chance():
-                self.health == "R"
-
+            # 3. Try to recover
+            if random.random() <= self.model.recovery_chance:
+                self.health = "R"
 
     def move(self):
-        pos_step = self.model.grid.get_neighbour(self.pos,moore = True,include_centre = False)
-        new_position = random.choice(pos_step)
+        # Get neighbouring cells (Moore neighbourhood) without including the current cell
+        neighbours = self.model.grid.get_neighborhood(
+            self.pos,
+            moore=True,
+            include_center=False
+        )
+
+        # Choose a random neighbouring position and move there
+        new_position = random.choice(neighbours)
         self.model.grid.move_agent(self, new_position)
 
-    def infect_neighbour(self):
-        cellmates = self.model.grid.get_cells_list_content(self.pos)
-        for others in cellmates:
-            if self.health == "S":
-                if random.random < self.model.infection_chance:
+    def infect_neighbours(self):
+        # Get all agents in the same cell
+        cellmates = self.model.grid.get_cell_list_contents([self.pos])
+
+        for other in cellmates:
+            # Only infect *other* susceptible agents
+            if other is not self and other.health == "S":
+                if random.random() < self.model.infection_chance:
                     other.health = "I"
 
 
-
-
 class VirusModel(Model):
-    def __init__(self, model, N= 50, infection_chance = 0.3,
-                 recovery_chance = 0.6,
-                 height = 10,
-                 width = 20,
-                 initial_infected = 4):
-        super.__init__()
-        self.num_agent = N
-        self.grid = MultiGrid(height,width,torus = True)
-        self.schedule.RandomActivation()
-        self.infection_chance = infection_chance()
-        self.recovery_chance = recovery_chance()
+    def __init__(
+        self,
+        N=50,
+        infection_chance=0.3,
+        recovery_chance=0.6,
+        width=20,
+        height=10,
+        initial_infected=4,
+    ):
+        super().__init__()
 
-        for i in range(self.num_agent):
+        self.num_agents = N
+        self.grid = MultiGrid(width, height, torus=True)
+        self.schedule = RandomActivation(self)
+
+        # Probabilities (floats, not functions)
+        self.infection_chance = infection_chance
+        self.recovery_chance = recovery_chance
+
+        # Create agents
+        for i in range(self.num_agents):
             infected = i < initial_infected
-            a = Person( i, self, infected)
+            a = Person(i, self, infected)
             self.schedule.add(a)
-            
-            x = self.random.randrange(self.grid.height)
-            y = self.random.randrange(self.grid.width)
-            self.grid.place_agent(a,(x,y))
 
+            # Place agent at random position
+            x = self.random.randrange(self.grid.width)
+            y = self.random.randrange(self.grid.height)
+            self.grid.place_agent(a, (x, y))
+
+        # Data collector
         self.datacollector = DataCollector(
             model_reporters={
-                "Susceptible" : lambda m : self.count_type("S"),
-                "Infected" : lambda m: self.count_type("I"),
-                "Recovery" : lambda m: self.count_type("R")
+                "Susceptible": lambda m: m.count_type("S"),
+                "Infected": lambda m: m.count_type("I"),
+                "Recovered": lambda m: m.count_type("R"),
             }
         )
+
+        # Collect initial state
+        self.datacollector.collect(self)
+
     def step(self):
-        self.datacollector.colect(self)
         self.schedule.step()
+        self.datacollector.collect(self)
 
     def count_type(self, health_state):
-        return sum([1 for a in self.schedule.agents if a.health == health_state])
-    
-    if __name__ == "__main__":
+        return sum(1 for a in self.schedule.agents if a.health == health_state)
+
+
+if __name__ == "__main__":
     model = VirusModel()
 
-    for day in range(20):   
+    for day in range(20):
         model.step()
 
     results = model.datacollector.get_model_vars_dataframe()
     print(results)
-
-
-
-
-
-
-
-    
